@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "418743472138",
+    "project_id": "com-hasrul-fotoapp",
+    "storage_bucket": "com-hasrul-fotoapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:418743472138:android:65bc5c3136ed40eef44ff3",
+        "android_client_info": {
+          "package_name": "com.hasrul.fotoapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8tA2HDbDDEMyN98CpcEMS-geY9ng-0I8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

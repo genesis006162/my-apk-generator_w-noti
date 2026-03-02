@@ -1,0 +1,13 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/core": "latest",
+    "@capacitor/camera": "latest",
+    "@capacitor/geolocation": "latest",
+    "@capacitor/filesystem": "latest",
+    "@capacitor/push-notifications": "latest"
+  }
+}

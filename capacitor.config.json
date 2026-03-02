@@ -1,0 +1,9 @@
+{
+  "appId": "com.hasrul.fotoapp",
+  "appName": "Sistem Foto",
+  "webDir": "www",
+  "server": {
+    "url": "https://google.com",
+    "cleartext": true
+  }
+}
