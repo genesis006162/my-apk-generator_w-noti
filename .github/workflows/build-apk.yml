@@ -1,6 +1,15 @@
-name: Bina APK (Autopilot)
+name: Bina APK dengan Notifikasi
 on:
   workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Nama App'
+        required: true
+        default: 'Sistem Foto'
+      app_url:
+        description: 'Link Web (Mesti ada https://)'
+        required: true
+        default: 'https://utamapress.com.my/hasrul/kad/index.html'
 
 jobs:
   build:
@@ -17,65 +26,36 @@ jobs:
         run: |
           mkdir -p www && touch www/index.html
           rm -rf android
-          echo '{"name": "my-app","version": "1.0.0","dependencies": {"@capacitor/android": "^6.0.0","@capacitor/cli": "^6.0.0","@capacitor/core": "^6.0.0","@capacitor/camera": "^6.0.0","@capacitor/geolocation": "^6.0.0","@capacitor/filesystem": "^6.0.0","@capacitor/push-notifications": "^6.0.0", "@capacitor/splash-screen": "^6.0.0"}}' > package.json
+          echo '{"name": "my-app","version": "1.0.0","dependencies": {"@capacitor/android": "^6.0.0","@capacitor/cli": "^6.0.0","@capacitor/core": "^6.0.0","@capacitor/camera": "^6.0.0","@capacitor/geolocation": "^6.0.0","@capacitor/filesystem": "^6.0.0","@capacitor/push-notifications": "^6.0.0"}}' > package.json
         
       - name: Install Dependencies
-        run: |
-          npm install --force
-          npm install @capacitor/assets@latest --save-dev
+        run: npm install --force
           
       - name: Create Fresh Android Project
         run: npx cap add android
-        
-      - name: Generate Icon & Splash
-        run: |
-          if [ -d "resources" ]; then
-            npx @capacitor/assets generate --android || echo "Abaikan ralat aset."
-          fi
       
-      - name: Read app-settings.json & Configure App
+      - name: Add Firebase Config
+        run: |
+          # Menyalin fail google-services.json ke dalam folder Android
+          if [ -f "resources/google-services.json" ]; then
+            mkdir -p android/app
+            cp resources/google-services.json android/app/google-services.json
+            echo "Fail Firebase berjaya disalin."
+          else
+            echo "AMARAN: Fail resources/google-services.json tidak dijumpai!"
+          fi
+
+      - name: Configure Android & Permissions
         run: |
           node -e "
             const fs = require('fs');
+            // Set URL & Name
+            const conf = JSON.parse(fs.readFileSync('capacitor.config.json'));
+            conf.appName = '${{ github.event.inputs.app_name }}';
+            conf.server.url = '${{ github.event.inputs.app_url }}';
+            fs.writeFileSync('capacitor.config.json', JSON.stringify(conf, null, 2));
             
-            // 1. Baca fail app-settings.json
-            if (!fs.existsSync('app-settings.json')) {
-              console.error('RALAT: Fail app-settings.json tidak dijumpai!');
-              process.exit(1);
-            }
-            const settings = JSON.parse(fs.readFileSync('app-settings.json', 'utf8'));
-            console.log('Membina Aplikasi: ' + settings.appName + ' (Versi: ' + settings.appVersion + ')');
-            
-            // 2. Kemaskini capacitor.config.json
-            const confPath = 'capacitor.config.json';
-            const conf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
-            conf.appId = settings.appId;
-            conf.appName = settings.appName;
-            conf.server = conf.server || {};
-            conf.server.url = settings.appUrl;
-            
-            conf.plugins = {
-              \"SplashScreen\": {
-                \"launchShowDuration\": 3000,
-                \"launchAutoHide\": true,
-                \"backgroundColor\": \"#ffffff\",
-                \"androidScaleType\": \"CENTER_CROP\",
-                \"showSpinner\": true,
-                \"spinnerColor\": \"#000000\"
-              }
-            };
-            fs.writeFileSync(confPath, JSON.stringify(conf, null, 2));
-            
-            // 3. Suntik Versi ke dalam build.gradle Android
-            const gradlePath = 'android/app/build.gradle';
-            if (fs.existsSync(gradlePath)) {
-              let gradle = fs.readFileSync(gradlePath, 'utf8');
-              gradle = gradle.replace(/versionCode [0-9]+/, 'versionCode ' + settings.buildNumber);
-              gradle = gradle.replace(/versionName \"[^\"]+\"/, 'versionName \"' + settings.appVersion + '\"');
-              fs.writeFileSync(gradlePath, gradle);
-            }
-            
-            // 4. Suntik Permissions ke AndroidManifest.xml
+            // Tambah kod Push Notification ke MainActivity.java secara automatik
             const manifestPath = 'android/app/src/main/AndroidManifest.xml';
             if (fs.existsSync(manifestPath)) {
               let manifest = fs.readFileSync(manifestPath, 'utf8');
@@ -84,9 +64,10 @@ jobs:
                 <uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\" />
                 <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />
                 <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />
-                <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />
+                <uses-permission android:name=\"android.permission.INTERNET\" />
+                <uses-permission android:name=\"android.permission.WAKE_LOCK\" />
               \`;
-              if (!manifest.includes('android.permission.CAMERA')) {
+              if (!manifest.includes('android.permission.POST_NOTIFICATIONS')) {
                 manifest = manifest.replace('<application', permissions + '\n    <application');
                 fs.writeFileSync(manifestPath, manifest);
               }
@@ -108,15 +89,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug -x lint --no-daemon
         
-      - name: Get App Name for Artifact
-        id: get_name
-        run: |
-          # Dapatkan nama fail dari app-settings.json untuk menamakan fail .apk yang siap
-          APP_NAME=$(node -p "require('./app-settings.json').appName.replace(/\s+/g, '_')")
-          echo "apk_name=$APP_NAME" >> $GITHUB_ENV
-          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.apk_name }}-APK
+          name: ${{ github.event.inputs.app_name }}-Firebase-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
